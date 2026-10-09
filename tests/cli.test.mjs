@@ -25,10 +25,7 @@ test('init produces runnable templates and never overwrites a config', async () 
   const dir = await mkdtemp(join(tmpdir(), 'appcapsule-cli-'));
   try {
     const result = JSON.parse(run(['init', '--json'], dir));
-    assert.equal(
-      await realpath(result.config),
-      await realpath(join(dir, 'appcapsule.config.mjs')),
-    );
+    assert.equal(await realpath(result.config), await realpath(join(dir, 'appcapsule.config.mjs')));
     assert.match(await readFile(result.scenario, 'utf8'), /export default async/);
     const original = await readFile(result.config, 'utf8');
     assert.throws(
