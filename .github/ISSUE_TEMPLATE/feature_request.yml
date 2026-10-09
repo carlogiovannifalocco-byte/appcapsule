@@ -1,0 +1,15 @@
+name: Feature request
+description: Propose a concrete improvement to portable demos
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would this help you demonstrate?
+      description: Describe the user interaction and why current behavior is insufficient.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example or proposed approach
+      description: A synthetic sample is especially helpful for compatibility requests.

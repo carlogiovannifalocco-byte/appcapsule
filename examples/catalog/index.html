@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Objects — portable catalog</title>
+  </head>
+  <body>
+    <main>
+      <header><span>OBJECTS / EDITION 01</span><span>A FICTIONAL COLLECTION</span></header>
+      <p class="eyebrow">THINGS TO KEEP AROUND.</p>
+      <h1>A little less.<br /><em>A little better.</em></h1>
+      <p class="intro">Everyday objects, chosen with care. A tiny catalog that travels with you.</p>
+      <div class="toolbar">
+        <label
+          >Collection
+          <select id="filter">
+            <option>All objects</option>
+            <option>Desk</option>
+            <option>Home</option>
+          </select></label
+        ><span id="count" aria-live="polite"></span><button id="view-saved">Saved (0)</button>
+      </div>
+      <section id="items" aria-label="Products"></section>
+      <p id="empty" hidden>No objects in this collection.</p>
+      <footer>Made of fictional products and real interactions. Nothing is for sale.</footer>
+    </main>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
