@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 const cli = resolve('dist/cli.js');
@@ -25,7 +25,7 @@ test('init produces runnable templates and never overwrites a config', async () 
   const dir = await mkdtemp(join(tmpdir(), 'appcapsule-cli-'));
   try {
     const result = JSON.parse(run(['init', '--json'], dir));
-    assert.equal(result.config, join(dir, 'appcapsule.config.mjs'));
+    assert.equal(await realpath(result.config), await realpath(join(dir, 'appcapsule.config.mjs')));
     assert.match(await readFile(result.scenario, 'utf8'), /export default async/);
     const original = await readFile(result.config, 'utf8');
     assert.throws(
