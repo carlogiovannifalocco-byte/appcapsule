@@ -33,7 +33,9 @@ export async function buildApp(project: string): Promise<string> {
     },
   };
   const result = await build({
-    root: resolve(project),
+    // Rollup resolves entry symlinks and Windows short names. Use the same
+    // canonical root so Vite computes HTML output paths inside the project.
+    root: await realpath(resolve(project)),
     base: './',
     logLevel: 'warn',
     plugins: [settings],

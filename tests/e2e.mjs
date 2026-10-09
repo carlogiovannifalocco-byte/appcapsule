@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, rm, symlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -8,7 +8,7 @@ import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { capture, verify, extractData } from '../dist/index.js';
-import { assemble } from '../dist/bundle.js';
+import { assemble, buildApp } from '../dist/bundle.js';
 
 let dir, capsule, result, browser;
 const minimal =
@@ -343,6 +343,19 @@ test('vanilla XHR catalog and hash-routed reading room work without their server
     const report = await verify(out, { scenario: `examples/${name}/journey.mjs` });
     assert.equal(report.passed, true, JSON.stringify(report));
   }
+});
+
+test('production builds resolve a linked project directory before bundling', async () => {
+  const root = join(dir, 'linked-source');
+  const alias = join(dir, 'linked-alias');
+  await mkdir(root);
+  await writeFile(
+    join(root, 'index.html'),
+    '<!doctype html><html><head><title>Linked project</title></head><body><h1>Portable project</h1></body></html>',
+  );
+  await symlink(root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const html = await buildApp(alias);
+  assert.match(html, /Portable project/);
 });
 
 test('blocked writes and changing API data fail capture without replacing an existing export', async () => {
