@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, mkdir, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, realpath, rm, symlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -41,7 +41,7 @@ const fixtureData = () => ({
 });
 
 before(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'appcapsule-e2e-'));
+  dir = await realpath(await mkdtemp(join(tmpdir(), 'appcapsule-e2e-')));
   capsule = join(dir, 'signal.html');
   const server = await createServer({
     root: resolve('examples/signal'),
@@ -393,6 +393,7 @@ test('blocked writes and changing API data fail capture without replacing an exi
     await server.listen();
     const url = `http://127.0.0.1:${server.httpServer.address().port}/`;
     const destination = join(dir, 'protected.html');
+    assert.equal((await fetch(url)).status, 200, 'The test app must be served successfully.');
     await writeFile(destination, 'previous export');
     const writeJourney = join(dir, 'write-journey.mjs');
     await writeFile(
