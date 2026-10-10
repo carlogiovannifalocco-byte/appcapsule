@@ -1,6 +1,6 @@
 {
   "name": "appcapsule",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn your Vite app into a verified, offline HTML demo. Real interactions. One portable file.",
   "type": "module",
   "bin": {

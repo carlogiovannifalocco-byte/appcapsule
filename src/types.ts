@@ -34,7 +34,7 @@ export interface Fixture {
 }
 export interface CapsuleData {
   schemaVersion: 1;
-  generator: 'appcapsule/0.1.0';
+  generator: `appcapsule/${string}`;
   title: string;
   entryUrl: string;
   createdAt: string;

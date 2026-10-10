@@ -175,7 +175,7 @@ export async function capture(
   if (problems.size) throw new Error([...problems].join('\n'));
   const data: CapsuleData = {
     schemaVersion: 1,
-    generator: 'appcapsule/0.1.0',
+    generator: 'appcapsule/0.2.0',
     title: options.title ?? 'My app',
     entryUrl: new URL(options.url).href,
     createdAt: new Date().toISOString(),

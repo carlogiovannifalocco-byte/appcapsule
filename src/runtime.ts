@@ -1,4 +1,5 @@
 import { requestKey } from './shared.js';
+import { mountDock, isDockDownload } from './dock.js';
 import type { CapsuleData } from './types.js';
 
 (() => {
@@ -15,10 +16,10 @@ import type { CapsuleData } from './types.js';
     fixtureCount: fixtures.size,
   };
   Object.defineProperty(window, '__APPCAPSULE__', { value: state, writable: false });
-  let announce = (_message: string) => {};
+
   const miss = (key: string) => {
     state.misses.push(key);
-    announce('This action is outside the recorded demo.');
+
     window.dispatchEvent(new CustomEvent('appcapsule:miss', { detail: { key } }));
   };
 
@@ -214,7 +215,7 @@ import type { CapsuleData } from './types.js';
     (event) => {
       const anchor = event.composedPath().find((node) => node instanceof HTMLAnchorElement) as
         HTMLAnchorElement | undefined;
-      if (!anchor) return;
+      if (!anchor || isDockDownload(anchor)) return;
       const href = anchor.getAttribute('href');
       if (!href || href.startsWith('#')) return;
       event.preventDefault();
@@ -224,70 +225,7 @@ import type { CapsuleData } from './types.js';
   );
   document.addEventListener('submit', (event) => event.preventDefault(), true);
 
-  const mount = () => {
-    const host = document.createElement('appcapsule-dock');
-    host.style.cssText =
-      'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:calc(100vw - 24px);';
-    const shadow = host.attachShadow({ mode: 'open' });
-    shadow.innerHTML = `<style>
-      :host{all:initial;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#eaf2ee;font-size:13px;line-height:1.5;color-scheme:dark}
-      *{box-sizing:border-box}button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #96f7c0;outline-offset:4px}
-      .dock{display:flex;align-items:center;gap:15px;padding:10px 12px 10px 16px;background:#14251feb;border:1px solid #ffffff24;border-radius:16px;box-shadow:0 8px 35px #0a201d25;backdrop-filter:blur(16px);white-space:nowrap}
-      .brand{display:flex;align-items:center;gap:9px;font-weight:750;letter-spacing:-.3px}.mark{width:21px;height:13px;border:2px solid #9ce6b6;border-radius:12px;transform:rotate(-35deg);position:relative}.mark:after{content:'';position:absolute;left:8px;top:-1px;width:1px;height:11px;background:#9ce6b6}
-      .status{color:#b4c8bb;font-size:12px;border-left:1px solid #ffffff24;padding-left:15px}.dot{display:inline-block;width:6px;height:6px;background:#a4edba;border-radius:50%;margin-right:6px}
-      .details{background:#ffffff0c;color:#e3eee8;border:1px solid #ffffff17;border-radius:9px;padding:6px 10px}.details:hover{background:#ffffff19}
-      .panel{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);width:360px;max-width:calc(100vw - 24px);padding:22px;background:#14251f;border:1px solid #ffffff20;border-radius:18px;box-shadow:0 14px 60px #001a1936}
-      [hidden]{display:none!important}h2{margin:0 0 6px;font-size:17px;letter-spacing:-.4px}p{margin:0 0 15px;color:#b4c8bb;font-size:13px;white-space:normal}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.metric{border:1px solid #ffffff15;border-radius:10px;padding:12px}.metric b{display:block;color:#a4edba;font-size:23px}.metric span{color:#b4c8bb;font-size:11px}
-      .note{padding:11px;background:#ffffff08;border-radius:9px;font-size:12px}.close{float:right;background:none;border:0;color:#b4c8bb;font-size:19px;padding:0 3px}.toast{position:absolute;bottom:66px;left:50%;transform:translateX(-50%);padding:12px 17px;border-radius:12px;background:#402c1b;color:#ffe2b6;box-shadow:0 6px 30px #0002;width:max-content;max-width:calc(100vw - 24px);font-size:13px}
-      @media(max-width:420px){.status{display:none}.dock{gap:12px}.panel{bottom:60px}}
-      @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
-    </style>
-    <section class="panel" id="details-panel" hidden aria-label="About this capsule">
-      <button class="close" aria-label="Close capsule details">×</button><h2>Your app. In a capsule.</h2>
-      <p id="capsule-title"></p><div class="grid"><div class="metric"><b id="captured"></b><span>captured responses</span></div><div class="metric"><b id="replayed">0</b><span>requests replayed locally</span></div></div>
-      <p class="note">This demo runs from captured data. Unsupported actions are blocked and identified. No live backend is connected.</p>
-      <p style="margin-bottom:0;font-size:11px" id="date"></p>
-    </section>
-    <div class="toast" role="status" aria-live="polite" hidden></div>
-    <div class="dock"><span class="brand"><span class="mark" aria-hidden="true"></span>AppCapsule</span><span class="status"><span class="dot"></span>Offline demo</span><button class="details" aria-controls="details-panel" aria-expanded="false">Inside the capsule ↗</button></div>`;
-    shadow.getElementById('capsule-title')!.textContent = data.title;
-    shadow.getElementById('captured')!.textContent = String(fixtures.size);
-    shadow.getElementById('date')!.textContent =
-      `Captured ${new Date(data.createdAt).toLocaleDateString()} · AppCapsule 0.1`;
-    const panel = shadow.querySelector<HTMLElement>('.panel')!,
-      details = shadow.querySelector<HTMLButtonElement>('.details')!;
-    const toast = shadow.querySelector<HTMLElement>('.toast')!;
-    const close = () => {
-      panel.hidden = true;
-      details.setAttribute('aria-expanded', 'false');
-      details.focus();
-    };
-    details.onclick = () => {
-      panel.hidden = !panel.hidden;
-      toast.hidden = true;
-      details.setAttribute('aria-expanded', String(!panel.hidden));
-      shadow.getElementById('replayed')!.textContent = String(state.hits.length);
-    };
-    shadow.querySelector<HTMLButtonElement>('.close')!.onclick = close;
-    shadow.addEventListener('keydown', (event) => {
-      if ((event as KeyboardEvent).key === 'Escape' && !panel.hidden) close();
-    });
-    window.addEventListener('appcapsule:replay', () => {
-      shadow.getElementById('replayed')!.textContent = String(state.hits.length);
-    });
-    let timer: ReturnType<typeof setTimeout>;
-    announce = (message) => {
-      panel.hidden = true;
-      details.setAttribute('aria-expanded', 'false');
-      toast.textContent = message;
-      toast.hidden = false;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        toast.hidden = true;
-      }, 5000);
-    };
-    document.body.append(host);
-  };
+  const mount = () => mountDock(data, state);
   if (document.readyState === 'loading')
     document.addEventListener('DOMContentLoaded', mount, { once: true });
   else mount();

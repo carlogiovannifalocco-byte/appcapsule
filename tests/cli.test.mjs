@@ -14,7 +14,7 @@ const run = (args, cwd) =>
 
 test('CLI has useful help, a version, and rejects unknown commands', () => {
   assert.match(run(['--help']), /capture/);
-  assert.equal(run(['--version']).trim(), '0.1.0');
+  assert.equal(run(['--version']).trim(), '0.2.0');
   assert.throws(
     () => run(['unknown']),
     (error) => error.status === 1 && error.stderr.includes('Unknown command'),

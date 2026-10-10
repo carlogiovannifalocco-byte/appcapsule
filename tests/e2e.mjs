@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { createServer } from 'vite';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { capture, verify, extractData } from '../dist/index.js';
 import { assemble, buildApp } from '../dist/bundle.js';
@@ -85,7 +85,9 @@ test('desktop and mobile exports stay interactive with no horizontal overflow', 
   await mkdir('test-results', { recursive: true });
   for (const viewport of [
     { width: 1440, height: 1120 },
+    { width: 768, height: 1024 },
     { width: 390, height: 844 },
+    { width: 320, height: 700 },
   ]) {
     const context = await browser.newContext({ offline: true, viewport });
     try {
@@ -94,17 +96,36 @@ test('desktop and mobile exports stay interactive with no horizontal overflow', 
       await page.getByRole('button', { name: 'Open Atlas website', exact: true }).waitFor();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
       assert.equal(overflow, false);
-      await page.screenshot({ path: `test-results/signal-${viewport.width}.png`, fullPage: true });
+      await page.screenshot({
+        path: `test-results/signal-${viewport.width}.png`,
+        fullPage: true,
+        animations: 'disabled',
+      });
       await page.getByRole('button', { name: 'Inside the capsule' }).click();
       assert.equal(
         await page.getByRole('heading', { name: 'Your app. In a capsule.' }).isVisible(),
         true,
       );
+      await page.getByRole('button', { name: 'Requests', exact: true }).click();
+      const panelBox = await page.locator('appcapsule-dock .panel').boundingBox();
+      assert.ok(panelBox.x >= 0 && panelBox.x + panelBox.width <= viewport.width);
       await page.keyboard.press('Escape');
       assert.equal(
         await page.getByRole('heading', { name: 'Your app. In a capsule.' }).isVisible(),
         false,
       );
+      await page.getByRole('button', { name: 'New project', exact: true }).click();
+      assert.equal(
+        await page.getByRole('dialog').evaluate((node) => node.scrollWidth > node.clientWidth),
+        false,
+      );
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: 'Command menu' }).click();
+      assert.equal(
+        await page.getByRole('dialog').evaluate((node) => node.scrollWidth > node.clientWidth),
+        false,
+      );
+      await page.keyboard.press('Escape');
     } finally {
       await context.close();
     }
@@ -290,7 +311,7 @@ test('capsule metadata cannot inject markup or active scripts', async () => {
   }
 });
 
-test('sample and capsule controls pass automated WCAG AA checks, including an open dialog', async () => {
+test('sample and capsule controls pass automated WCAG AA checks in light, dark and dialog states', async () => {
   const context = await browser.newContext({
     offline: true,
     viewport: { width: 1440, height: 1120 },
@@ -299,21 +320,268 @@ test('sample and capsule controls pass automated WCAG AA checks, including an op
     const page = await context.newPage();
     await page.goto(pathToFileURL(capsule).href);
     await page.getByRole('button', { name: 'Open Atlas website' }).waitFor();
-    for (const state of ['workspace', 'capsule', 'project']) {
+    for (const state of [
+      'workspace',
+      'capsule',
+      'requests',
+      'project',
+      'dark',
+      'command',
+      'create',
+    ]) {
       if (state === 'capsule')
         await page.getByRole('button', { name: 'Inside the capsule' }).click();
       if (state === 'project') {
         await page.getByRole('button', { name: 'Close capsule details' }).click();
         await page.getByRole('button', { name: 'Open Atlas website' }).click();
       }
+      if (state === 'requests')
+        await page.getByRole('button', { name: 'Requests', exact: true }).click();
+      if (state === 'dark') {
+        await page.getByRole('button', { name: 'Close project', exact: true }).click();
+        await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+      }
+      if (state === 'command') await page.getByRole('button', { name: 'Command menu' }).click();
+      if (state === 'create') {
+        await page.getByRole('combobox', { name: 'Find a project or action' }).fill('create');
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('textbox', { name: 'Project name' })).toBeFocused();
+      }
+      await page.evaluate(() =>
+        Promise.all(
+          document
+            .getAnimations()
+            .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+            .map((animation) => animation.finished.catch(() => {})),
+        ),
+      );
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
         .analyze();
+      if (results.violations.length) {
+        await mkdir('test-results', { recursive: true });
+        await writeFile(
+          `test-results/accessibility-${state}.json`,
+          JSON.stringify(results.violations, null, 2),
+        );
+      }
       assert.deepEqual(
         results.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
         [],
         state,
       );
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test('workspace tools, keyboard commands, editing and undo work with the network disabled', async () => {
+  const context = await browser.newContext({ offline: true });
+  try {
+    const page = await context.newPage();
+    const requests = [],
+      errors = [];
+    page.on('request', (request) => {
+      if (/^https?:/.test(request.url())) requests.push(request.url());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(pathToFileURL(capsule).href);
+    await page.getByRole('button', { name: 'Save Orbit mobile', exact: true }).click();
+    await page.getByRole('button', { name: 'Show saved projects' }).click();
+    await expect(page.locator('.project-card')).toHaveCount(1);
+    await expect(
+      page.getByRole('button', { name: 'Open Orbit mobile', exact: true }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Unsave Orbit mobile', exact: true }).click();
+    await expect(page.getByText('Keep the good ones close.')).toBeVisible();
+    await page.getByRole('button', { name: 'Reset filters' }).click();
+    await page.getByRole('button', { name: 'List view' }).click();
+    await page.getByLabel('Sort projects').selectOption('name');
+    await expect(page.locator('.project-list h3')).toHaveText([
+      'Atlas website',
+      'Fieldnotes',
+      'Orbit mobile',
+      'Studio system',
+    ]);
+    await page.keyboard.press('/');
+    await expect(page.getByRole('textbox', { name: 'Search projects' })).toBeFocused();
+    await page.getByRole('textbox', { name: 'Search projects' }).fill('no such project');
+    await expect(page.getByText('A little too quiet here.')).toBeVisible();
+    await page.getByRole('button', { name: 'Reset filters' }).click();
+    await page.keyboard.press('Control+k');
+    const command = page.getByRole('combobox', { name: 'Find a project or action' });
+    await expect(command).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    const selectedCommand = page.getByRole('listbox').getByRole('option', { selected: true });
+    await expect(selectedCommand).toContainText('Enter focus mode');
+    const selectedInView = await selectedCommand.evaluate((node) => {
+      const a = node.getBoundingClientRect(),
+        b = node.parentElement.getBoundingClientRect();
+      return a.top >= b.top && a.bottom <= b.bottom + 1;
+    });
+    assert.equal(selectedInView, true);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.sidebar')).toBeHidden();
+    await page.getByRole('button', { name: 'Leave focus mode' }).click();
+    await page.keyboard.press('Control+k');
+    await command.fill('create');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('textbox', { name: 'Project name' })).toBeFocused();
+    await page.getByRole('textbox', { name: 'Project name' }).fill('A portable idea');
+    await page
+      .getByRole('textbox', { name: 'A little description' })
+      .fill('A complete local project');
+    await page.getByLabel('Collection', { exact: true }).selectOption('Research');
+    await page.getByRole('button', { name: 'blue project color' }).click();
+    await page.getByRole('button', { name: 'Create project', exact: true }).click();
+    const created = page.locator('.project-card').filter({ hasText: 'A portable idea' });
+    await expect(created).toContainText('A complete local project');
+    await expect(created).toContainText('Research');
+    await expect(created.locator('.art-blue')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(created).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open Atlas website', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    const beforeProgress = Number(
+      await dialog.getByRole('progressbar').getAttribute('aria-valuenow'),
+    );
+    await dialog.getByRole('checkbox').first().check();
+    assert.ok(
+      Number(await dialog.getByRole('progressbar').getAttribute('aria-valuenow')) > beforeProgress,
+    );
+    await page
+      .getByRole('textbox', { name: 'New project step' })
+      .fill('Review the offline experience');
+    await page.getByRole('button', { name: 'Add project step' }).click();
+    await page.getByRole('checkbox', { name: 'Review the offline experience' }).check();
+    await page.getByRole('button', { name: 'Close project', exact: true }).click();
+    await page.getByRole('button', { name: 'Open Atlas website', exact: true }).click();
+    await expect(
+      page.getByRole('checkbox', { name: 'Review the offline experience' }),
+    ).toBeChecked();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'My tasks', exact: true }).click();
+    await page.getByRole('textbox', { name: 'New task' }).fill('Ship the next release');
+    await page.getByRole('button', { name: 'Add task', exact: true }).click();
+    await page.getByRole('checkbox', { name: /Ship the next release/ }).check();
+    await page.getByRole('button', { name: 'Completed', exact: true }).click();
+    await expect(page.getByRole('checkbox')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Inbox', exact: true }).click();
+    await page.getByRole('button', { name: 'Mark all as read' }).click();
+    await expect(page.getByText('0 unread', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(page.getByText('3 unread', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: /Jamie Lee.*research synthesis/ }).click();
+    await expect(dialog.getByRole('heading', { name: 'Fieldnotes', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('2 unread', { exact: true })).toBeVisible();
+    assert.deepEqual(requests, []);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(await page.evaluate(() => window.__APPCAPSULE__.misses), []);
+  } finally {
+    await context.close();
+  }
+});
+
+test('capsule explorer filters safely, preserves keyboard focus and exports body-free session diagnostics', async () => {
+  const context = await browser.newContext({ offline: true, acceptDownloads: true });
+  try {
+    const page = await context.newPage();
+    const data = fixtureData();
+    data.entryUrl += '#/recorded';
+    data.fixtures[0].body = JSON.stringify({
+      text: '</pre><img src=x onerror="window.injected=true">',
+    });
+    const file = join(dir, 'explorer.html');
+    await writeFile(file, await assemble(minimal, data));
+    await page.goto(pathToFileURL(file).href);
+    await page.getByRole('button', { name: 'Minimize capsule controls' }).click();
+    await expect(page.getByRole('button', { name: 'Inside the capsule' })).toBeHidden();
+    await page.getByRole('button', { name: 'Restore capsule controls' }).click();
+    await page.keyboard.press('Alt+Shift+c');
+    await expect(page.getByRole('button', { name: 'Close capsule details' })).toBeFocused();
+    await page.getByRole('button', { name: 'Requests', exact: true }).click();
+    const dock = page.locator('appcapsule-dock');
+    await expect(dock.locator('.request')).toHaveCount(2);
+    await page.getByRole('searchbox', { name: 'Search captured requests' }).fill('items');
+    await expect(dock.locator('.request')).toHaveCount(1);
+    await dock.locator('summary').click();
+    await expect(dock.locator('pre')).toContainText('</pre><img');
+    assert.equal(await page.evaluate(() => window.injected), undefined);
+    await page.evaluate(() => fetch('/api/items'));
+    await expect(dock.locator('summary')).toBeFocused();
+    await expect(dock.locator('.usage')).toHaveText('1×');
+    await page.getByRole('searchbox', { name: 'Search captured requests' }).fill('');
+    await page.getByLabel('Filter requests').selectOption('unused');
+    await expect(dock.locator('.request code')).toHaveText('/api/empty');
+    await page.evaluate(() => fetch('/api/missing').catch(() => {}));
+    await page.getByLabel('Filter requests').selectOption('blocked');
+    await expect(dock.locator('.blocked')).toContainText('/api/missing');
+    const downloadEvent = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download session report' }).click();
+    const download = await downloadEvent;
+    assert.equal(download.suggestedFilename(), 'appcapsule-session.json');
+    const report = JSON.parse(await readFile(await download.path(), 'utf8'));
+    assert.equal(report.kind, 'appcapsule-session');
+    assert.equal(report.replayCount, 1);
+    assert.equal(report.usedResponses, 1);
+    assert.equal(report.blockedActions.length, 1);
+    assert.equal(report.responses.length, 2);
+    assert.ok(report.responses.every((response) => !('body' in response)));
+    assert.equal(JSON.stringify(report).includes('onerror'), false);
+    await page.evaluate(() => {
+      const link = document.createElement('a');
+      link.href = 'https://example.com/should-not-download';
+      link.download = 'pretend-report.json';
+      document.body.append(link);
+      link.click();
+      link.remove();
+    });
+    await expect(dock.locator('.blocked')).toHaveCount(2);
+    assert.equal(
+      await page.evaluate(() => window.__APPCAPSULE__.misses.at(-1)),
+      'Navigation outside this capsule',
+    );
+    await page.evaluate(() => {
+      location.hash = '#/elsewhere';
+    });
+    await page.getByRole('button', { name: 'Restart demo' }).click();
+    await expect(page.getByRole('button', { name: 'Keep exploring' })).toBeFocused();
+    await page.getByRole('button', { name: 'Keep exploring' }).click();
+    await expect(page).toHaveURL(/#\/elsewhere$/);
+    await page.getByRole('button', { name: 'Restart demo' }).click();
+    await Promise.all([
+      page.waitForEvent('load'),
+      page.getByRole('button', { name: 'Restart now', exact: true }).click(),
+    ]);
+    await expect(page).toHaveURL(/#\/recorded$/);
+    assert.deepEqual(await page.evaluate(() => window.__APPCAPSULE__.hits), []);
+    assert.deepEqual(await page.evaluate(() => window.__APPCAPSULE__.misses), []);
+  } finally {
+    await context.close();
+  }
+});
+
+test('reduced-motion preference stops decorative motion in the workspace and capsule controls', async () => {
+  const context = await browser.newContext({ offline: true, reducedMotion: 'reduce' });
+  try {
+    const page = await context.newPage();
+    await page.goto(pathToFileURL(capsule).href);
+    await page.getByRole('button', { name: 'Open Atlas website' }).waitFor();
+    await page.getByRole('button', { name: 'Inside the capsule' }).click();
+    for (const selector of ['.sculpture', '.project-card', 'appcapsule-dock .panel']) {
+      const motion = await page
+        .locator(selector)
+        .first()
+        .evaluate((node) => {
+          const style = getComputedStyle(node);
+          return { animation: style.animationName, transition: style.transitionDuration };
+        });
+      assert.equal(motion.animation, 'none', selector);
+      assert.equal(motion.transition, '0s', selector);
     }
   } finally {
     await context.close();
