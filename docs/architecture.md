@@ -24,6 +24,8 @@ flowchart LR
 
 Diagnostic events: `appcapsule:replay` and `appcapsule:miss`, both carrying `{ key }` in `detail`. `window.__APPCAPSULE__` exposes hit/miss arrays for the verifier. This is observability for trusted demos, not tamper-resistant monitoring.
 
+`dock.ts` owns the shadow-root explorer, bounded text-only response previews, per-response replay counts and session JSON download. The download link is registered in a private WeakSet so the navigation guard permits only that runtime-owned link. Session reports exclude response bodies and are explicitly separate from verification results. None of the explorer's counters changes the verifier's pass/fail rules.
+
 ## Verification and output
 
 `verify.ts` parses the manifest, opens the actual `file:` URL in an offline browser context and additionally aborts any observed external HTTP(S) request. It runs the journey, collects browser errors and runtime diagnostics, and hashes the exact file. The capture candidate lives in a temporary directory and is removed on either outcome. A failed verification does not replace an existing export.

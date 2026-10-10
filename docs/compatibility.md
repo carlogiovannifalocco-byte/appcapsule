@@ -1,6 +1,6 @@
 # Compatibility and troubleshooting
 
-AppCapsule 0.1 is a deliberately bounded exporter for source-owned Vite apps. It is not an arbitrary-website copier or backend emulator.
+AppCapsule is a deliberately bounded exporter for source-owned Vite apps. It is not an arbitrary-website copier or backend emulator.
 
 ## Application build
 

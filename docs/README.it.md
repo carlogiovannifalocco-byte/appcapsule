@@ -15,7 +15,9 @@ npm run build
 npm run demo
 ```
 
-Apri `capsules/signal.html`. Puoi cercare, filtrare e aprire i progetti, completare attività e creare un progetto temporaneo. Il server è già stato spento dallo script.
+Apri `capsules/signal.html`. Puoi cercare e salvare progetti, passare dalla griglia alla lista, cambiare tema, aggiungere attività, completare passaggi e creare progetti temporanei. **Ctrl/⌘ K** apre la ricerca rapida di progetti e azioni. Il server è già stato spento dallo script.
+
+Con **Inside the capsule** esplori le risposte registrate, cerchi gli endpoint e controlli quali sono stati usati. Puoi scaricare un resoconto della sessione senza i corpi delle risposte, ridurre i controlli o ricominciare la demo. Questo resoconto è distinto dal rapporto di verifica offline del file.
 
 Servono Node.js 22.12+ e Chromium per creare e verificare le capsule. Chi riceve il file usa il browser. Il pacchetto già compilato e tre demo sono disponibili nelle [release](https://github.com/carlogiovannifalocco-byte/appcapsule/releases).
 

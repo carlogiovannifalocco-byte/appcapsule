@@ -33,7 +33,7 @@ npm run build
 npm run demo
 ```
 
-Open `capsules/signal.html` by double-clicking it. Search projects, open their details, filter the collection, check tasks, or create a temporary project. The demo script has already stopped its server.
+Open `capsules/signal.html` by double-clicking it. Search and save projects, switch between grid and list, create a temporary project, add tasks and complete steps. Try the dark theme or use **Ctrl/⌘ K** to jump to a project or action. The demo script has already stopped its server.
 
 Want a smaller example? Run `npm run demo -- catalog` for a vanilla JavaScript/XHR catalog, or `npm run demo -- fieldbook` for a hash-routed reading app. Every sample uses fictional data.
 
@@ -42,7 +42,7 @@ Want a smaller example? Run `npm run demo -- catalog` for a vanilla JavaScript/X
 Install the prebuilt package from a GitHub release in your Vite project:
 
 ```sh
-npm install --save-dev https://github.com/carlogiovannifalocco-byte/appcapsule/releases/download/v0.1.0/appcapsule-0.1.0.tgz
+npm install --save-dev https://github.com/carlogiovannifalocco-byte/appcapsule/releases/download/v0.2.0/appcapsule-0.2.0.tgz
 npx playwright install chromium
 npx appcapsule init
 ```
@@ -84,13 +84,21 @@ To explore manually, omit `scenario` from your config. Capture opens a fresh bro
 - Your production frontend: real JavaScript, CSS, and supported embedded assets.
 - The captured GET/HEAD JSON or text responses needed by the recorded path.
 - A small runtime that answers recorded requests locally and reports unsupported actions.
-- An accessible, keyboard-operable panel showing captured and replayed response counts.
+- A keyboard-operable explorer with searchable responses, safe body previews, replay counts and blocked-action diagnostics.
 
 AppCapsule does not export a backend. Client-side interactions still work; new server-side behavior does not appear by magic. It is particularly useful for portfolios, UI reviews, product walkthroughs, and shareable examples.
 
-## Scope of the first release
+## Explore what's inside
 
-| Supported                                                           | Outside v0.1                                                  |
+Click **Inside the capsule** or press **Alt + Shift + C**. The overview shows recorded responses and how many have been used in the current session. In **Requests**, search an endpoint, filter used or unused responses, and expand its recorded content. Blocked actions have their own filter.
+
+Download a session report to share endpoint metadata, replay counts and blocked actions without copying response bodies. This is a session activity report, separate from the SHA-256 verification report produced by the CLI. Restart returns to the recorded starting screen; in Signal, it also clears temporary edits. Minimize the controls when you want more space.
+
+[Workspace guide and keyboard shortcuts](docs/experience.md)
+
+## Compatibility scope
+
+| Supported                                                           | Outside v0.2                                                  |
 | ------------------------------------------------------------------- | ------------------------------------------------------------- |
 | A local, single-entry Vite SPA; React and vanilla examples included | Arbitrary third-party websites, SSR and multi-page apps       |
 | Root URL and hash routing                                           | History/path routing                                          |

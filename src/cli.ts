@@ -9,7 +9,7 @@ import { extractData, verify } from './verify.js';
 import type { CapsuleOptions } from './types.js';
 
 const HELP = `
-  AppCapsule 0.1.0
+  AppCapsule 0.2.0
   Your app. In a file.
 
   appcapsule init                         Create a config and journey
@@ -54,7 +54,7 @@ async function main() {
     },
   });
   if (values.version) {
-    console.log('0.1.0');
+    console.log('0.2.0');
     return;
   }
   const command = positionals[0];

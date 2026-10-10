@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-10-10
+
+- Redesigned Signal workspace with light and dark themes, responsive layouts, project artwork and reduced-motion support.
+- Grid/list views, sorting, saved projects, keyboard command menu, focus mode, editable tasks and project steps, inbox actions and undo.
+- Capsule explorer with searchable recorded responses, replay coverage, safe response previews and blocked-action filters.
+- Downloadable session diagnostics without response bodies, compact controls and restart confirmation.
+- Expanded offline interaction, keyboard, accessibility and 320–1440 px layout checks.
+
 ## 0.1.0 — 2026-10-09
 
 First public release.
