@@ -58,7 +58,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@types/node": "^24.10.0",
     "esbuild": "^0.25.12",
-    "prettier": "^3.9.9",
+    "prettier": "^3.9.10",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "typescript": "^5.9.3"
